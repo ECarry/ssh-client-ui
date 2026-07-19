@@ -1,4 +1,5 @@
 mod ssh;
+mod store;
 
 use ssh::SshManager;
 
@@ -21,6 +22,9 @@ pub fn run() {
       ssh::ssh_send_input,
       ssh::ssh_resize,
       ssh::ssh_disconnect,
+      store::load_config,
+      store::save_config,
+      store::delete_server_secret,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
