@@ -1,15 +1,42 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MainPanel } from '@/components/MainPanel'
 import { ServerFormModal } from '@/components/ServerFormModal'
-import { mockFiles, mockGroups, mockServers } from '@/data/mock'
-import type { Server } from '@/types'
+import { mockFiles } from '@/data/mock'
+import { loadConfig, saveConfig } from '@/lib/store'
+import type { Server, ServerGroup } from '@/types'
 
 function App() {
-  const [servers, setServers] = useState<Server[]>(mockServers)
+  const [servers, setServers] = useState<Server[]>([])
+  const [groups, setGroups] = useState<ServerGroup[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Server | null>(null)
+
+  // Load persisted config on startup.
+  useEffect(() => {
+    loadConfig()
+      .then((cfg) => {
+        setServers(cfg.servers)
+        setGroups(cfg.groups)
+      })
+      .catch((err) => console.error('加载配置失败', err))
+      .finally(() => setLoaded(true))
+  }, [])
+
+  // Persist whenever servers or groups change (after the initial load).
+  const skipSave = useRef(true)
+  useEffect(() => {
+    if (!loaded) return
+    if (skipSave.current) {
+      skipSave.current = false
+      return
+    }
+    saveConfig({ servers, groups }).catch((err) =>
+      console.error('保存配置失败', err),
+    )
+  }, [servers, groups, loaded])
 
   const activeServer = useMemo(
     () => servers.find((s) => s.id === activeId),
@@ -44,7 +71,7 @@ function App() {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar
-        groups={mockGroups}
+        groups={groups}
         servers={servers}
         activeServerId={activeId}
         onSelect={selectServer}
@@ -62,7 +89,7 @@ function App() {
 
       <ServerFormModal
         open={modalOpen}
-        groups={mockGroups}
+        groups={groups}
         initial={editing}
         onClose={() => setModalOpen(false)}
         onSave={saveServer}
