@@ -1,5 +1,21 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { RemoteFile } from '@/types'
+
+export interface DownloadProgress {
+  /** SFTP session id the progress belongs to. */
+  id: string
+  transferred: number
+  /** Total bytes, or 0 when unknown. */
+  total: number
+}
+
+/** Subscribe to download progress events. Remember to call the returned unlisten. */
+export function onDownloadProgress(
+  cb: (progress: DownloadProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<DownloadProgress>('sftp:download-progress', (e) => cb(e.payload))
+}
 
 export interface SftpConnectConfig {
   host: string

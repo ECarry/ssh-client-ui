@@ -15,6 +15,7 @@ import type { RemoteFile } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
+  onDownloadProgress,
   sftpDownload,
   sftpHome,
   sftpList,
@@ -51,6 +52,10 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [progress, setProgress] = useState<{
+    transferred: number
+    total: number
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadDir = useCallback(
@@ -109,12 +114,19 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
     if (typeof dest !== 'string') return
     setBusy('正在下载...')
     setError(null)
+    setProgress({ transferred: 0, total: selectedFile.size })
+    const unlisten = await onDownloadProgress((p) => {
+      if (p.id === sessionId)
+        setProgress({ transferred: p.transferred, total: p.total })
+    })
     try {
       await sftpDownload(sessionId, joinPath(path, selectedFile.name), dest)
     } catch (e) {
       setError(String(e))
     } finally {
+      unlisten()
       setBusy(null)
+      setProgress(null)
     }
   }
 
@@ -253,10 +265,30 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
       {/* Status bar */}
       <div className="flex items-center gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground">
         {busy ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>{busy}</span>
-          </>
+          <div className="flex flex-1 items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            <span className="shrink-0">{busy}</span>
+            {progress && progress.total > 0 ? (
+              <>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-150"
+                    style={{
+                      width: `${Math.min(100, Math.floor((progress.transferred / progress.total) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <span className="shrink-0 tabular-nums">
+                  {formatSize(progress.transferred)} / {formatSize(progress.total)} (
+                  {Math.min(100, Math.floor((progress.transferred / progress.total) * 100))}%)
+                </span>
+              </>
+            ) : progress ? (
+              <span className="shrink-0 tabular-nums">
+                {formatSize(progress.transferred)}
+              </span>
+            ) : null}
+          </div>
         ) : selected ? (
           <span>
             已选择: <span className="text-foreground">{selected}</span>

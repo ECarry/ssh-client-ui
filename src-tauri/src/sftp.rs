@@ -6,8 +6,8 @@ use russh::client::Handle;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileType;
 use serde::Serialize;
-use tauri::State;
-use tokio::io::AsyncWriteExt;
+use tauri::{AppHandle, Emitter, State};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::ssh::{connect_and_auth, Client, ConnectConfig};
 
@@ -149,23 +149,71 @@ pub async fn sftp_list(
     Ok(files)
 }
 
-/// Download a remote file to a local path.
+/// Progress payload emitted during a download, keyed by SFTP session id.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadProgress {
+    id: String,
+    transferred: u64,
+    total: u64,
+}
+
+/// Download a remote file to a local path, emitting `sftp:download-progress`
+/// events (throttled) so the frontend can render a progress bar.
 #[tauri::command]
 pub async fn sftp_download(
+    app: AppHandle,
     state: State<'_, SftpManager>,
     id: String,
     remote_path: String,
     local_path: String,
 ) -> Result<(), String> {
     let sftp = session_for(&state, &id)?;
-    let mut remote = sftp.open(remote_path).await.map_err(|e| e.to_string())?;
+    // Best-effort total size for the progress bar; 0 means unknown.
+    let total = sftp
+        .metadata(&remote_path)
+        .await
+        .ok()
+        .and_then(|m| m.size)
+        .unwrap_or(0);
+    let mut remote = sftp.open(&remote_path).await.map_err(|e| e.to_string())?;
     let mut local = tokio::fs::File::create(&local_path)
         .await
         .map_err(|e| e.to_string())?;
-    tokio::io::copy(&mut remote, &mut local)
-        .await
-        .map_err(|e| e.to_string())?;
+
+    let emit = |transferred: u64| {
+        let _ = app.emit(
+            "sftp:download-progress",
+            DownloadProgress {
+                id: id.clone(),
+                transferred,
+                total,
+            },
+        );
+    };
+
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut transferred: u64 = 0;
+    let mut last_emit = std::time::Instant::now();
+    emit(0);
+    loop {
+        let n = remote.read(&mut buf).await.map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        local
+            .write_all(&buf[..n])
+            .await
+            .map_err(|e| e.to_string())?;
+        transferred += n as u64;
+        // Throttle to ~10 events/sec to avoid flooding the IPC channel.
+        if last_emit.elapsed().as_millis() >= 100 {
+            last_emit = std::time::Instant::now();
+            emit(transferred);
+        }
+    }
     local.flush().await.map_err(|e| e.to_string())?;
+    emit(transferred);
     Ok(())
 }
 
