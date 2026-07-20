@@ -42,6 +42,7 @@ interface SidebarProps {
   onAddGroup: (name: string) => void
   onRenameGroup: (id: string, name: string) => void
   onDeleteGroup: (id: string) => void
+  onReorderGroup: (draggingId: string, targetId: string, before: boolean) => void
   onMoveServer: (serverId: string, groupId: string) => void
   onReorderServer: (draggingId: string, targetId: string, before: boolean) => void
   onDeleteServer: (serverId: string) => void
@@ -57,6 +58,7 @@ export function Sidebar({
   onAddGroup,
   onRenameGroup,
   onDeleteGroup,
+  onReorderGroup,
   onMoveServer,
   onReorderServer,
   onDeleteServer,
@@ -72,6 +74,11 @@ export function Sidebar({
   const [dropRow, setDropRow] = useState<{ id: string; before: boolean } | null>(
     null,
   )
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null)
+  const [dropGroupRow, setDropGroupRow] = useState<{
+    id: string
+    before: boolean
+  } | null>(null)
 
   const startEdit = (group: ServerGroup) => {
     setEditingId(group.id)
@@ -147,6 +154,29 @@ export function Sidebar({
     setDropGroupId(null)
   }
 
+  const handleGroupDragOver = (e: DragEvent, groupId: string) => {
+    if (draggingGroupId && draggingGroupId !== groupId) {
+      e.preventDefault()
+      setDropGroupRow({ id: groupId, before: rowDropSide(e) })
+    } else if (draggingId) {
+      e.preventDefault()
+      setDropGroupId(groupId)
+      setDropRow(null)
+    }
+  }
+
+  const handleGroupDrop = (e: DragEvent, groupId: string) => {
+    e.preventDefault()
+    if (draggingGroupId) {
+      if (draggingGroupId !== groupId)
+        onReorderGroup(draggingGroupId, groupId, rowDropSide(e))
+    } else {
+      handleDrop(groupId)
+    }
+    setDraggingGroupId(null)
+    setDropGroupRow(null)
+  }
+
   return (
     <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       {/* Brand */}
@@ -220,29 +250,45 @@ export function Sidebar({
           const isCollapsed = collapsed[group.id]
           const isEditing = editingId === group.id
           const isDropTarget = dropGroupId === group.id
+          const showGroupBefore =
+            dropGroupRow?.id === group.id && dropGroupRow.before
+          const showGroupAfter =
+            dropGroupRow?.id === group.id && !dropGroupRow.before
           return (
             <div
               key={group.id}
               className={cn(
-                'group/header mb-1 rounded-md',
+                'group/header relative mb-1 rounded-md',
                 isDropTarget && 'ring-2 ring-primary/60 ring-inset',
               )}
-              onDragOver={(e: DragEvent) => {
-                if (!draggingId) return
-                e.preventDefault()
-                setDropGroupId(group.id)
-                setDropRow(null)
-              }}
+              onDragOver={(e: DragEvent) => handleGroupDragOver(e, group.id)}
               onDragLeave={(e: DragEvent) => {
                 if (e.currentTarget.contains(e.relatedTarget as Node)) return
                 setDropGroupId((cur) => (cur === group.id ? null : cur))
+                setDropGroupRow((cur) => (cur?.id === group.id ? null : cur))
               }}
-              onDrop={(e: DragEvent) => {
-                e.preventDefault()
-                handleDrop(group.id)
-              }}
+              onDrop={(e: DragEvent) => handleGroupDrop(e, group.id)}
             >
-              <div className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+              {showGroupBefore && (
+                <div className="pointer-events-none absolute inset-x-1 -top-0.5 z-10 h-0.5 rounded bg-primary" />
+              )}
+              <div
+                draggable={!isEditing}
+                onDragStart={(e: DragEvent) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', group.id)
+                  setDraggingGroupId(group.id)
+                }}
+                onDragEnd={() => {
+                  setDraggingGroupId(null)
+                  setDropGroupRow(null)
+                }}
+                className={cn(
+                  'flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  !isEditing && 'cursor-grab active:cursor-grabbing',
+                  draggingGroupId === group.id && 'opacity-50',
+                )}
+              >
                 {isEditing ? (
                   <>
                     <Folder className="h-3.5 w-3.5 shrink-0" />
@@ -343,6 +389,9 @@ export function Sidebar({
                     </div>
                   )}
                 </div>
+              )}
+              {showGroupAfter && (
+                <div className="pointer-events-none absolute inset-x-1 -bottom-0.5 z-10 h-0.5 rounded bg-primary" />
               )}
             </div>
           )

@@ -94,6 +94,25 @@ function App() {
     })
   }
 
+  const reorderGroup = (
+    draggingId: string,
+    targetId: string,
+    before: boolean,
+  ) => {
+    if (draggingId === targetId) return
+    setGroups((prev) => {
+      const dragging = prev.find((g) => g.id === draggingId)
+      if (!dragging) return prev
+      const without = prev.filter((g) => g.id !== draggingId)
+      const targetIndex = without.findIndex((g) => g.id === targetId)
+      if (targetIndex === -1) return prev
+      const insertIndex = before ? targetIndex : targetIndex + 1
+      const next = [...without]
+      next.splice(insertIndex, 0, dragging)
+      return next
+    })
+  }
+
   const moveServer = (serverId: string, groupId: string) => {
     setServers((prev) =>
       prev.map((s) => (s.id === serverId ? { ...s, groupId } : s)),
@@ -138,6 +157,7 @@ function App() {
         onAddGroup={addGroup}
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
+        onReorderGroup={reorderGroup}
         onMoveServer={moveServer}
         onReorderServer={reorderServer}
         onDeleteServer={deleteServer}
