@@ -20,8 +20,10 @@ pub struct ConnectConfig {
     pub password: Option<String>,
     pub key_path: Option<String>,
     pub key_passphrase: Option<String>,
-    pub cols: u32,
-    pub rows: u32,
+    #[serde(default)]
+    pub cols: Option<u32>,
+    #[serde(default)]
+    pub rows: Option<u32>,
 }
 
 /// Payload emitted to the frontend as the shell produces output.
@@ -52,7 +54,7 @@ pub struct SshManager {
 
 /// russh client handler. We accept any server key here for simplicity;
 /// a production client should verify against a known_hosts store.
-struct Client;
+pub(crate) struct Client;
 
 impl client::Handler for Client {
     type Error = russh::Error;
@@ -65,8 +67,9 @@ impl client::Handler for Client {
     }
 }
 
-/// Establish the SSH session, authenticate, and open an interactive PTY+shell.
-async fn establish(cfg: &ConnectConfig) -> anyhow::Result<(Handle<Client>, Channel<client::Msg>)> {
+/// Connect to the host and authenticate, returning the live session handle.
+/// Shared by the interactive shell and the SFTP subsystem.
+pub(crate) async fn connect_and_auth(cfg: &ConnectConfig) -> anyhow::Result<Handle<Client>> {
     let config = Arc::new(client::Config::default());
     let mut session = client::connect(config, (cfg.host.as_str(), cfg.port), Client).await?;
 
@@ -102,9 +105,24 @@ async fn establish(cfg: &ConnectConfig) -> anyhow::Result<(Handle<Client>, Chann
         anyhow::bail!("authentication failed");
     }
 
+    Ok(session)
+}
+
+/// Establish the SSH session, authenticate, and open an interactive PTY+shell.
+async fn establish(cfg: &ConnectConfig) -> anyhow::Result<(Handle<Client>, Channel<client::Msg>)> {
+    let session = connect_and_auth(cfg).await?;
+
     let channel = session.channel_open_session().await?;
     channel
-        .request_pty(false, "xterm-256color", cfg.cols, cfg.rows, 0, 0, &[])
+        .request_pty(
+            false,
+            "xterm-256color",
+            cfg.cols.unwrap_or(80),
+            cfg.rows.unwrap_or(24),
+            0,
+            0,
+            &[],
+        )
         .await?;
     channel.request_shell(true).await?;
 

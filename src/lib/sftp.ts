@@ -1,0 +1,65 @@
+import { invoke } from '@tauri-apps/api/core'
+import type { RemoteFile } from '@/types'
+
+export interface SftpConnectConfig {
+  host: string
+  port: number
+  username: string
+  authType: 'password' | 'key'
+  password?: string
+  keyPath?: string
+  keyPassphrase?: string
+}
+
+/** Open an SFTP session over its own SSH connection. Returns the session id. */
+export function sftpConnect(config: SftpConnectConfig): Promise<string> {
+  return invoke<string>('sftp_connect', { config })
+}
+
+/** Resolve the remote home directory (canonicalized "."). */
+export function sftpHome(id: string): Promise<string> {
+  return invoke<string>('sftp_home', { id })
+}
+
+/** List the entries of a remote directory (dirs first, then alphabetical). */
+export function sftpList(id: string, path: string): Promise<RemoteFile[]> {
+  return invoke<RemoteFile[]>('sftp_list', { id, path })
+}
+
+/** Download a remote file to a local path. */
+export function sftpDownload(
+  id: string,
+  remotePath: string,
+  localPath: string,
+): Promise<void> {
+  return invoke('sftp_download', { id, remotePath, localPath })
+}
+
+/** Upload a local file to a remote path. */
+export function sftpUpload(
+  id: string,
+  localPath: string,
+  remotePath: string,
+): Promise<void> {
+  return invoke('sftp_upload', { id, localPath, remotePath })
+}
+
+/** Create a remote directory. */
+export function sftpMkdir(id: string, path: string): Promise<void> {
+  return invoke('sftp_mkdir', { id, path })
+}
+
+/** Remove a remote file or empty directory. */
+export function sftpRemove(id: string, path: string, isDir: boolean): Promise<void> {
+  return invoke('sftp_remove', { id, path, isDir })
+}
+
+/** Rename / move a remote entry. */
+export function sftpRename(id: string, from: string, to: string): Promise<void> {
+  return invoke('sftp_rename', { id, from, to })
+}
+
+/** Close an SFTP session. */
+export function sftpDisconnect(id: string): Promise<void> {
+  return invoke('sftp_disconnect', { id })
+}

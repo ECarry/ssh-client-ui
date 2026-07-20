@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MainPanel } from '@/components/MainPanel'
 import { ServerFormModal } from '@/components/ServerFormModal'
-import { mockFiles } from '@/data/mock'
 import { loadConfig, saveConfig } from '@/lib/store'
 import type { Server, ServerGroup } from '@/types'
 
@@ -82,7 +81,6 @@ function App() {
       <main className="min-w-0 flex-1">
         <MainPanel
           server={activeServer}
-          files={mockFiles}
           onEdit={() => activeServer && openEdit(activeServer)}
         />
       </main>

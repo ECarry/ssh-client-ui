@@ -1,12 +1,16 @@
+mod sftp;
 mod ssh;
 mod store;
 
+use sftp::SftpManager;
 use ssh::SshManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
     .manage(SshManager::default())
+    .manage(SftpManager::default())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -25,6 +29,15 @@ pub fn run() {
       store::load_config,
       store::save_config,
       store::delete_server_secret,
+      sftp::sftp_connect,
+      sftp::sftp_home,
+      sftp::sftp_list,
+      sftp::sftp_download,
+      sftp::sftp_upload,
+      sftp::sftp_mkdir,
+      sftp::sftp_remove,
+      sftp::sftp_rename,
+      sftp::sftp_disconnect,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

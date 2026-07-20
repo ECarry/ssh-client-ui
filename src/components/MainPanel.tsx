@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FolderTree, Pencil, Plug, Power, TerminalSquare } from 'lucide-react'
-import type { ConnectionStatus, RemoteFile, Server } from '@/types'
+import { FolderTree, Loader2, Pencil, Plug, Power, TerminalSquare } from 'lucide-react'
+import type { ConnectionStatus, Server } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -10,12 +10,12 @@ import {
   sshDisconnect,
   type SshConnectConfig,
 } from '@/lib/ssh'
+import { sftpConnect, sftpDisconnect } from '@/lib/sftp'
 import { FileBrowser } from './FileBrowser'
 import { TerminalView } from './TerminalView'
 
 interface MainPanelProps {
   server?: Server
-  files: RemoteFile[]
   onEdit: () => void
 }
 
@@ -26,17 +26,22 @@ const statusMeta: Record<ConnectionStatus, { label: string; color: string }> = {
   error: { label: '连接失败', color: 'bg-destructive' },
 }
 
-export function MainPanel({ server, files, onEdit }: MainPanelProps) {
+export function MainPanel({ server, onEdit }: MainPanelProps) {
   const [tab, setTab] = useState('terminal')
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sftpId, setSftpId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const sessionRef = useRef<string | null>(null)
+  const sftpRef = useRef<string | null>(null)
 
   const reset = useCallback(() => {
     if (sessionRef.current) void sshDisconnect(sessionRef.current)
+    if (sftpRef.current) void sftpDisconnect(sftpRef.current)
     sessionRef.current = null
+    sftpRef.current = null
     setSessionId(null)
+    setSftpId(null)
     setStatus('disconnected')
     setError(null)
   }, [])
@@ -80,6 +85,20 @@ export function MainPanel({ server, files, onEdit }: MainPanelProps) {
       sessionRef.current = id
       setSessionId(id)
       setStatus('connected')
+      // Open a separate SFTP session (best-effort; failure only disables SFTP).
+      sftpConnect({
+        host: server.host,
+        port: server.port,
+        username: server.username,
+        authType: server.authType,
+        password: server.password,
+        keyPath: server.keyPath,
+      })
+        .then((sid) => {
+          sftpRef.current = sid
+          setSftpId(sid)
+        })
+        .catch((e) => console.error('SFTP 连接失败', e))
     } catch (e) {
       setStatus('error')
       setError(String(e))
@@ -156,7 +175,14 @@ export function MainPanel({ server, files, onEdit }: MainPanelProps) {
             <TerminalView sessionId={sessionId} />
           </TabsContent>
           <TabsContent value="sftp" className="min-h-0">
-            <FileBrowser files={files} />
+            {sftpId ? (
+              <FileBrowser sessionId={sftpId} />
+            ) : (
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                正在建立 SFTP 会话...
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       )}
