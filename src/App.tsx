@@ -94,6 +94,17 @@ function App() {
     })
   }
 
+  const moveServer = (serverId: string, groupId: string) => {
+    setServers((prev) =>
+      prev.map((s) => (s.id === serverId ? { ...s, groupId } : s)),
+    )
+  }
+
+  const deleteServer = (serverId: string) => {
+    setServers((prev) => prev.filter((s) => s.id !== serverId))
+    setActiveId((cur) => (cur === serverId ? undefined : cur))
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar
@@ -106,6 +117,8 @@ function App() {
         onAddGroup={addGroup}
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
+        onMoveServer={moveServer}
+        onDeleteServer={deleteServer}
       />
 
       <main className="min-w-0 flex-1">

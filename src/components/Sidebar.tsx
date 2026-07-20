@@ -1,4 +1,9 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import {
+  useMemo,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+} from 'react'
 import {
   Check,
   ChevronDown,
@@ -19,6 +24,13 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 
 interface SidebarProps {
   groups: ServerGroup[]
@@ -30,6 +42,8 @@ interface SidebarProps {
   onAddGroup: (name: string) => void
   onRenameGroup: (id: string, name: string) => void
   onDeleteGroup: (id: string) => void
+  onMoveServer: (serverId: string, groupId: string) => void
+  onDeleteServer: (serverId: string) => void
 }
 
 export function Sidebar({
@@ -42,6 +56,8 @@ export function Sidebar({
   onAddGroup,
   onRenameGroup,
   onDeleteGroup,
+  onMoveServer,
+  onDeleteServer,
 }: SidebarProps) {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -49,6 +65,8 @@ export function Sidebar({
   const [editValue, setEditValue] = useState('')
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropGroupId, setDropGroupId] = useState<string | null>(null)
 
   const startEdit = (group: ServerGroup) => {
     setEditingId(group.id)
@@ -90,6 +108,15 @@ export function Sidebar({
 
   const toggle = (id: string) =>
     setCollapsed((c) => ({ ...c, [id]: !c[id] }))
+
+  const handleDrop = (groupId: string) => {
+    if (draggingId) {
+      const server = servers.find((s) => s.id === draggingId)
+      if (server && server.groupId !== groupId) onMoveServer(draggingId, groupId)
+    }
+    setDraggingId(null)
+    setDropGroupId(null)
+  }
 
   return (
     <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -163,8 +190,28 @@ export function Sidebar({
           if (groupServers.length === 0 && query.trim()) return null
           const isCollapsed = collapsed[group.id]
           const isEditing = editingId === group.id
+          const isDropTarget = dropGroupId === group.id
           return (
-            <div key={group.id} className="group/header mb-1">
+            <div
+              key={group.id}
+              className={cn(
+                'group/header mb-1 rounded-md',
+                isDropTarget && 'ring-2 ring-primary/60 ring-inset',
+              )}
+              onDragOver={(e: DragEvent) => {
+                if (!draggingId) return
+                e.preventDefault()
+                setDropGroupId(group.id)
+              }}
+              onDragLeave={(e: DragEvent) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return
+                setDropGroupId((cur) => (cur === group.id ? null : cur))
+              }}
+              onDrop={(e: DragEvent) => {
+                e.preventDefault()
+                handleDrop(group.id)
+              }}
+            >
               <div className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                 {isEditing ? (
                   <>
@@ -227,8 +274,16 @@ export function Sidebar({
                       key={server.id}
                       server={server}
                       active={server.id === activeServerId}
+                      dragging={server.id === draggingId}
                       onClick={() => onSelect(server)}
                       onDoubleClick={() => onEditServer(server)}
+                      onEdit={() => onEditServer(server)}
+                      onDelete={() => onDeleteServer(server.id)}
+                      onDragStart={() => setDraggingId(server.id)}
+                      onDragEnd={() => {
+                        setDraggingId(null)
+                        setDropGroupId(null)
+                      }}
                     />
                   ))}
                   {groupServers.length === 0 && (
@@ -257,39 +312,74 @@ export function Sidebar({
 function ServerRow({
   server,
   active,
+  dragging,
   onClick,
   onDoubleClick,
+  onEdit,
+  onDelete,
+  onDragStart,
+  onDragEnd,
 }: {
   server: Server
   active: boolean
+  dragging: boolean
   onClick: () => void
   onDoubleClick: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onDragStart: () => void
+  onDragEnd: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-      title="单击选择 · 双击编辑"
-      className={cn(
-        'group flex w-full items-center gap-2 rounded-md px-2 py-2 pl-7 text-left transition-colors',
-        active
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-          : 'hover:bg-sidebar-accent/60',
-      )}
-    >
-      <ServerIcon
-        className="h-4 w-4 shrink-0"
-        style={{ color: server.color }}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{server.name}</div>
-        <div className="truncate text-xs text-muted-foreground">
-          {server.username}@{server.host}
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            draggable
+            onDragStart={(e: DragEvent) => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', server.id)
+              onDragStart()
+            }}
+            onDragEnd={onDragEnd}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+            title="单击选择 · 双击编辑 · 拖拽移动分组 · 右键菜单"
+            className={cn(
+              'group flex w-full items-center gap-2 rounded-md px-2 py-2 pl-7 text-left transition-colors',
+              dragging && 'opacity-50',
+              active
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'hover:bg-sidebar-accent/60',
+            )}
+          />
+        }
+      >
+        <ServerIcon
+          className="h-4 w-4 shrink-0"
+          style={{ color: server.color }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{server.name}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {server.username}@{server.host}
+          </div>
         </div>
-      </div>
-      {server.lastConnected && (
-        <Circle className="h-2 w-2 shrink-0 fill-green-500 text-green-500 opacity-0 group-hover:opacity-100" />
-      )}
-    </button>
+        {server.lastConnected && (
+          <Circle className="h-2 w-2 shrink-0 fill-green-500 text-green-500 opacity-0 group-hover:opacity-100" />
+        )}
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil className="h-4 w-4" />
+          编辑
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 className="h-4 w-4" />
+          删除
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
