@@ -100,6 +100,27 @@ function App() {
     )
   }
 
+  const reorderServer = (
+    draggingId: string,
+    targetId: string,
+    before: boolean,
+  ) => {
+    if (draggingId === targetId) return
+    setServers((prev) => {
+      const dragging = prev.find((s) => s.id === draggingId)
+      const target = prev.find((s) => s.id === targetId)
+      if (!dragging || !target) return prev
+      // Dropping onto a server also adopts that server's group.
+      const moved = { ...dragging, groupId: target.groupId }
+      const without = prev.filter((s) => s.id !== draggingId)
+      const targetIndex = without.findIndex((s) => s.id === targetId)
+      const insertIndex = before ? targetIndex : targetIndex + 1
+      const next = [...without]
+      next.splice(insertIndex, 0, moved)
+      return next
+    })
+  }
+
   const deleteServer = (serverId: string) => {
     setServers((prev) => prev.filter((s) => s.id !== serverId))
     setActiveId((cur) => (cur === serverId ? undefined : cur))
@@ -118,6 +139,7 @@ function App() {
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
         onMoveServer={moveServer}
+        onReorderServer={reorderServer}
         onDeleteServer={deleteServer}
       />
 

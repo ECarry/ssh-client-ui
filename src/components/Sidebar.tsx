@@ -43,6 +43,7 @@ interface SidebarProps {
   onRenameGroup: (id: string, name: string) => void
   onDeleteGroup: (id: string) => void
   onMoveServer: (serverId: string, groupId: string) => void
+  onReorderServer: (draggingId: string, targetId: string, before: boolean) => void
   onDeleteServer: (serverId: string) => void
 }
 
@@ -57,6 +58,7 @@ export function Sidebar({
   onRenameGroup,
   onDeleteGroup,
   onMoveServer,
+  onReorderServer,
   onDeleteServer,
 }: SidebarProps) {
   const [query, setQuery] = useState('')
@@ -67,6 +69,9 @@ export function Sidebar({
   const [newName, setNewName] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropGroupId, setDropGroupId] = useState<string | null>(null)
+  const [dropRow, setDropRow] = useState<{ id: string; before: boolean } | null>(
+    null,
+  )
 
   const startEdit = (group: ServerGroup) => {
     setEditingId(group.id)
@@ -115,6 +120,30 @@ export function Sidebar({
       if (server && server.groupId !== groupId) onMoveServer(draggingId, groupId)
     }
     setDraggingId(null)
+    setDropGroupId(null)
+    setDropRow(null)
+  }
+
+  const rowDropSide = (e: DragEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return e.clientY < rect.top + rect.height / 2
+  }
+
+  const handleRowDragOver = (e: DragEvent, serverId: string) => {
+    if (!draggingId || draggingId === serverId) return
+    e.preventDefault()
+    e.stopPropagation()
+    setDropRow({ id: serverId, before: rowDropSide(e) })
+    setDropGroupId(null)
+  }
+
+  const handleRowDrop = (e: DragEvent, serverId: string) => {
+    if (!draggingId) return
+    e.preventDefault()
+    e.stopPropagation()
+    onReorderServer(draggingId, serverId, rowDropSide(e))
+    setDraggingId(null)
+    setDropRow(null)
     setDropGroupId(null)
   }
 
@@ -202,6 +231,7 @@ export function Sidebar({
                 if (!draggingId) return
                 e.preventDefault()
                 setDropGroupId(group.id)
+                setDropRow(null)
               }}
               onDragLeave={(e: DragEvent) => {
                 if (e.currentTarget.contains(e.relatedTarget as Node)) return
@@ -269,23 +299,44 @@ export function Sidebar({
 
               {!isCollapsed && !isEditing && (
                 <div className="mt-0.5 space-y-0.5">
-                  {groupServers.map((server) => (
-                    <ServerRow
-                      key={server.id}
-                      server={server}
-                      active={server.id === activeServerId}
-                      dragging={server.id === draggingId}
-                      onClick={() => onSelect(server)}
-                      onDoubleClick={() => onEditServer(server)}
-                      onEdit={() => onEditServer(server)}
-                      onDelete={() => onDeleteServer(server.id)}
-                      onDragStart={() => setDraggingId(server.id)}
-                      onDragEnd={() => {
-                        setDraggingId(null)
-                        setDropGroupId(null)
-                      }}
-                    />
-                  ))}
+                  {groupServers.map((server) => {
+                    const showBefore =
+                      dropRow?.id === server.id && dropRow.before
+                    const showAfter =
+                      dropRow?.id === server.id && !dropRow.before
+                    return (
+                      <div
+                        key={server.id}
+                        className="relative"
+                        onDragOver={(e: DragEvent) =>
+                          handleRowDragOver(e, server.id)
+                        }
+                        onDrop={(e: DragEvent) => handleRowDrop(e, server.id)}
+                      >
+                        {showBefore && (
+                          <div className="pointer-events-none absolute inset-x-2 -top-px z-10 h-0.5 rounded bg-primary" />
+                        )}
+                        <ServerRow
+                          server={server}
+                          active={server.id === activeServerId}
+                          dragging={server.id === draggingId}
+                          onClick={() => onSelect(server)}
+                          onDoubleClick={() => onEditServer(server)}
+                          onEdit={() => onEditServer(server)}
+                          onDelete={() => onDeleteServer(server.id)}
+                          onDragStart={() => setDraggingId(server.id)}
+                          onDragEnd={() => {
+                            setDraggingId(null)
+                            setDropGroupId(null)
+                            setDropRow(null)
+                          }}
+                        />
+                        {showAfter && (
+                          <div className="pointer-events-none absolute inset-x-2 -bottom-px z-10 h-0.5 rounded bg-primary" />
+                        )}
+                      </div>
+                    )
+                  })}
                   {groupServers.length === 0 && (
                     <div className="px-2 py-1.5 pl-7 text-xs text-muted-foreground/60">
                       暂无服务器
