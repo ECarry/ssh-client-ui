@@ -36,6 +36,7 @@ interface SidebarProps {
   groups: ServerGroup[]
   servers: Server[]
   activeServerId?: string
+  connectedIds: Set<string>
   onSelect: (server: Server) => void
   onAddServer: () => void
   onEditServer: (server: Server) => void
@@ -52,6 +53,7 @@ export function Sidebar({
   groups,
   servers,
   activeServerId,
+  connectedIds,
   onSelect,
   onAddServer,
   onEditServer,
@@ -365,6 +367,7 @@ export function Sidebar({
                         <ServerRow
                           server={server}
                           active={server.id === activeServerId}
+                          connected={connectedIds.has(server.id)}
                           dragging={server.id === draggingId}
                           onClick={() => onSelect(server)}
                           onDoubleClick={() => onEditServer(server)}
@@ -412,6 +415,7 @@ export function Sidebar({
 function ServerRow({
   server,
   active,
+  connected,
   dragging,
   onClick,
   onDoubleClick,
@@ -422,6 +426,7 @@ function ServerRow({
 }: {
   server: Server
   active: boolean
+  connected: boolean
   dragging: boolean
   onClick: () => void
   onDoubleClick: () => void
@@ -465,8 +470,8 @@ function ServerRow({
             {server.username}@{server.host}
           </div>
         </div>
-        {server.lastConnected && (
-          <Circle className="h-2 w-2 shrink-0 fill-green-500 text-green-500 opacity-0 group-hover:opacity-100" />
+        {connected && (
+          <Circle className="h-2 w-2 shrink-0 fill-green-500 text-green-500" />
         )}
       </ContextMenuTrigger>
       <ContextMenuContent>

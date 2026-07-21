@@ -17,6 +17,7 @@ import { TerminalView } from './TerminalView'
 interface MainPanelProps {
   server?: Server
   onEdit: () => void
+  onStatusChange?: (id: string, status: ConnectionStatus) => void
 }
 
 const statusMeta: Record<ConnectionStatus, { label: string; color: string }> = {
@@ -26,7 +27,7 @@ const statusMeta: Record<ConnectionStatus, { label: string; color: string }> = {
   error: { label: '连接失败', color: 'bg-destructive' },
 }
 
-export function MainPanel({ server, onEdit }: MainPanelProps) {
+export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
   const [tab, setTab] = useState('terminal')
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -53,6 +54,19 @@ export function MainPanel({ server, onEdit }: MainPanelProps) {
     return () => {
       if (sessionRef.current) void sshDisconnect(sessionRef.current)
       if (sftpRef.current) void sftpDisconnect(sftpRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Report connection status upward so the sidebar can show a live indicator.
+  useEffect(() => {
+    if (server) onStatusChange?.(server.id, status)
+  }, [server, status, onStatusChange])
+
+  // Notify parent this server is disconnected when the panel unmounts.
+  useEffect(() => {
+    return () => {
+      if (server) onStatusChange?.(server.id, 'disconnected')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

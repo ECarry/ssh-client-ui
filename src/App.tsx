@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MainPanel } from '@/components/MainPanel'
 import { ServerFormModal } from '@/components/ServerFormModal'
 import { loadConfig, saveConfig } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import type { Server, ServerGroup } from '@/types'
+import type { ConnectionStatus, Server, ServerGroup } from '@/types'
 
 function App() {
   const [servers, setServers] = useState<Server[]>([])
@@ -14,6 +14,10 @@ function App() {
   // Servers that have been opened at least once. Each keeps a persistent,
   // independently-connected MainPanel so switching tabs never disconnects.
   const [openIds, setOpenIds] = useState<string[]>([])
+  // Live connection status per server, reported by each MainPanel.
+  const [statuses, setStatuses] = useState<Record<string, ConnectionStatus>>(
+    {},
+  )
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Server | null>(null)
 
@@ -40,6 +44,23 @@ function App() {
       console.error('保存配置失败', err),
     )
   }, [servers, groups, loaded])
+
+  const handleStatusChange = useCallback(
+    (id: string, status: ConnectionStatus) => {
+      setStatuses((prev) => (prev[id] === status ? prev : { ...prev, [id]: status }))
+    },
+    [],
+  )
+
+  const connectedIds = useMemo(
+    () =>
+      new Set(
+        Object.entries(statuses)
+          .filter(([, s]) => s === 'connected')
+          .map(([id]) => id),
+      ),
+    [statuses],
+  )
 
   // Resolve open ids to live server objects, preserving open order.
   const openServers = useMemo(
@@ -170,6 +191,7 @@ function App() {
         groups={groups}
         servers={servers}
         activeServerId={activeId}
+        connectedIds={connectedIds}
         onSelect={selectServer}
         onAddServer={openAdd}
         onEditServer={openEdit}
@@ -194,7 +216,11 @@ function App() {
                 s.id === activeId ? 'block' : 'hidden',
               )}
             >
-              <MainPanel server={s} onEdit={() => openEdit(s)} />
+              <MainPanel
+                server={s}
+                onEdit={() => openEdit(s)}
+                onStatusChange={handleStatusChange}
+              />
             </div>
           ))
         )}

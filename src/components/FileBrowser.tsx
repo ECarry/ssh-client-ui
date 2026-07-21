@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import {
   onDownloadProgress,
   sftpDownload,
+  sftpDownloadDir,
   sftpHome,
   sftpList,
   sftpUpload,
@@ -109,18 +110,29 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
   }
 
   const onDownload = async () => {
-    if (!selectedFile || selectedFile.type === 'dir') return
-    const dest = await saveDialog({ defaultPath: selectedFile.name })
+    if (!selectedFile) return
+    const remotePath = joinPath(path, selectedFile.name)
+    const isDir = selectedFile.type === 'dir'
+
+    // Files pick a save target; folders pick a destination parent directory.
+    const dest = isDir
+      ? await openDialog({ directory: true, multiple: false })
+      : await saveDialog({ defaultPath: selectedFile.name })
     if (typeof dest !== 'string') return
-    setBusy('正在下载...')
+
+    setBusy(isDir ? '正在下载文件夹...' : '正在下载...')
     setError(null)
-    setProgress({ transferred: 0, total: selectedFile.size })
+    setProgress({ transferred: 0, total: isDir ? 0 : selectedFile.size })
     const unlisten = await onDownloadProgress((p) => {
       if (p.id === sessionId)
         setProgress({ transferred: p.transferred, total: p.total })
     })
     try {
-      await sftpDownload(sessionId, joinPath(path, selectedFile.name), dest)
+      if (isDir) {
+        await sftpDownloadDir(sessionId, remotePath, dest)
+      } else {
+        await sftpDownload(sessionId, remotePath, dest)
+      }
     } catch (e) {
       setError(String(e))
     } finally {
@@ -192,7 +204,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
         <Button
           variant="outline"
           size="sm"
-          disabled={!selectedFile || selectedFile.type === 'dir' || !!busy}
+          disabled={!selectedFile || !!busy}
           onClick={onDownload}
         >
           <Download className="h-4 w-4" />
@@ -294,7 +306,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
             已选择: <span className="text-foreground">{selected}</span>
           </span>
         ) : (
-          <span>提示: 双击文件夹进入 · 单击选中文件后可下载</span>
+          <span>提示: 双击文件夹进入 · 单击选中文件或文件夹后可下载</span>
         )}
       </div>
     </div>
