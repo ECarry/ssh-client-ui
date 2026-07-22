@@ -1,0 +1,75 @@
+name: "Release App"
+
+on:
+  push:
+    tags:
+      - 'v*' # 当推送形如 v1.0.0 的 Git Tag 时触发打包
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest' # Apple Silicon (M1/M2/M3/M4)
+            args: '--target aarch64-apple-darwin'
+          - platform: 'ubuntu-22.04' # Linux
+            args: ''
+          - platform: 'windows-latest' # Windows
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. 配置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # 2. 配置 pnpm (如果项目使用 pnpm，可保留；如果使用 npm/yarn 可注释或修改)
+    #   - name: Setup pnpm
+    #     uses: pnpm/action-setup@v3
+    #     with:
+    #       version: 8
+
+      # 3. 配置 Rust 工具链与构建缓存
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 4. 安装 Linux 系统编译依赖 (仅 Ubuntu 执行)
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      # 5. 安装前端依赖
+      - name: Install frontend dependencies
+        run: |
+          pnpm install # 如果使用的是 npm，请换成 npm install
+
+      # 6. 调用 Tauri 官方打包并发布脚本
+      - name: Build and Publish Tauri App
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # 自动提取 package.json 或 tauri.conf.json 中的 version
+          releaseName: 'Ferric v__VERSION__'
+          releaseBody: 'See the assets below to download.'
+          releaseDraft: true # 设置为 true 会先生成 Release 草稿，确认无误后可在 GitHub 上手动点 Publish
+          prerelease: false
+          args: ${{ matrix.args }}
