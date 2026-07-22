@@ -27,6 +27,7 @@ and packaged as a native desktop app via Tauri.
 - **Interactive terminal** — a full PTY terminal powered by xterm.js, with colors and auto-resizing.
 - **Multiple concurrent connections** — each server keeps its own persistent session; switching tabs never disconnects an active session.
 - **SFTP file management** — browse remote directories, upload / download files, **recursively download whole folders**, create directories, rename, and delete, all with a live progress bar.
+- **Remote Docker management** — inspect the remote Docker server, list all containers, and start, stop, or restart them from the connection workspace.
 - **Server organization** — groups, drag-and-drop reordering, moving across groups, and search filtering.
 - **Password & key auth** — supports password login and private-key login (with optional passphrase).
 - **Secure secret storage** — passwords are stored in the OS keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service) and are **never written to disk in plaintext**.
@@ -54,11 +55,13 @@ Ferric/
 │   │   ├── MainPanel.tsx     # Per-server panel: connection mgmt + terminal / SFTP tabs
 │   │   ├── TerminalView.tsx  # xterm.js terminal wrapper
 │   │   ├── FileBrowser.tsx   # SFTP file browser + upload / download
+│   │   ├── docker/DockerView.tsx # Remote Docker container management
 │   │   ├── ServerFormModal.tsx # Create / edit server form
 │   │   └── ui/               # Base UI components (button/input/tabs/...)
 │   └── lib/                  # Frontend <-> backend IPC wrappers
 │       ├── ssh.ts            # SSH commands & events
 │       ├── sftp.ts           # SFTP commands & events
+│       ├── docker.ts         # Remote Docker commands
 │       ├── store.ts          # Config read / write
 │       └── utils.ts          # cn() and other helpers
 │
@@ -68,6 +71,7 @@ Ferric/
         ├── main.rs           # Binary entry point
         ├── ssh.rs            # SSH sessions: connect, PTY, input / output, resize
         ├── sftp.rs           # SFTP sessions: list, upload / download, mutations
+        ├── docker.rs         # Docker commands run over authenticated SSH
         └── store.rs          # Config persistence + keychain secret management
 ```
 
@@ -89,6 +93,12 @@ Ferric/
 
 - `Config` = `servers[] + groups[]`, stored as JSON in the OS app-config directory (`config.json`).
 - **Passwords are not written to the JSON**: on save they are stripped and written to the keychain (service name `com.ferric.ssh`), then re-hydrated on load.
+
+### `docker.rs` — remote Docker management
+
+- Uses the saved SSH credentials to run Docker CLI commands on the remote server.
+- Lists both running and stopped containers, with Docker engine version and platform details.
+- Supports start, stop, and restart actions. Container identifiers are validated before they are included in a remote shell command.
 
 ## 🔌 Backend API (Tauri Commands)
 
@@ -122,6 +132,16 @@ registered in `src-tauri/src/lib.rs`.
 | `sftp_disconnect`    | `id`                                                | `()`              | Close the SFTP session          |
 
 **Events:** `sftp:download-progress` (`{ id, transferred, total }`)
+
+### Docker
+
+| Command                       | Params                                      | Returns             | Description                              |
+| ----------------------------- | ------------------------------------------- | ------------------- | ---------------------------------------- |
+| `get_remote_docker_version`   | `config: ConnectConfig`                     | `DockerInfo`        | Docker engine version and platform       |
+| `list_remote_containers`      | `config: ConnectConfig, all: Boolean`       | `DockerContainer[]` | List remote containers                   |
+| `control_remote_container`    | `config, containerId, action`               | `()`                | Start, stop, or restart a container      |
+| `create_remote_container`     | `config, input: { name?, image, command? }` | `()`                | Create and start a detached container    |
+| `rename_remote_container`     | `config, containerId, name`                 | `()`                | Rename a container                       |
 
 ### Config / Secrets
 

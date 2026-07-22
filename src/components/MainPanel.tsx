@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { FolderTree, Loader2, Pencil, Plug, Power, TerminalSquare } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Container, FolderTree, Loader2, Pencil, Plug, Power, TerminalSquare } from 'lucide-react'
 import type { ConnectionStatus, Server } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import {
 import { sftpConnect, sftpDisconnect } from '@/lib/sftp'
 import { FileBrowser } from './FileBrowser'
 import { TerminalView } from './TerminalView'
+import { DockerView } from './docker/DockerView'
 
 interface MainPanelProps {
   server?: Server
@@ -36,6 +37,20 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
   const sessionRef = useRef<string | null>(null)
   const sftpRef = useRef<string | null>(null)
 
+  const sshConfig = useMemo<SshConnectConfig | null>(() => {
+    if (!server) return null
+    return {
+      host: server.host,
+      port: server.port,
+      username: server.username,
+      authType: server.authType,
+      password: server.password,
+      keyPath: server.keyPath,
+      cols: 80,
+      rows: 24,
+    }
+  }, [server])
+
   const reset = useCallback(() => {
     if (sessionRef.current) void sshDisconnect(sessionRef.current)
     if (sftpRef.current) void sftpDisconnect(sftpRef.current)
@@ -55,7 +70,6 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
       if (sessionRef.current) void sshDisconnect(sessionRef.current)
       if (sftpRef.current) void sftpDisconnect(sftpRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Report connection status upward so the sidebar can show a live indicator.
@@ -86,33 +100,16 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
   }, [sessionId])
 
   const connect = useCallback(async () => {
-    if (!server) return
+    if (!sshConfig) return
     setStatus('connecting')
     setError(null)
-    const config: SshConnectConfig = {
-      host: server.host,
-      port: server.port,
-      username: server.username,
-      authType: server.authType,
-      password: server.password,
-      keyPath: server.keyPath,
-      cols: 80,
-      rows: 24,
-    }
     try {
-      const id = await sshConnect(config)
+      const id = await sshConnect(sshConfig)
       sessionRef.current = id
       setSessionId(id)
       setStatus('connected')
       // Open a separate SFTP session (best-effort; failure only disables SFTP).
-      sftpConnect({
-        host: server.host,
-        port: server.port,
-        username: server.username,
-        authType: server.authType,
-        password: server.password,
-        keyPath: server.keyPath,
-      })
+      sftpConnect(sshConfig)
         .then((sid) => {
           sftpRef.current = sid
           setSftpId(sid)
@@ -122,7 +119,7 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
       setStatus('error')
       setError(String(e))
     }
-  }, [server])
+  }, [sshConfig])
 
   if (!server) return <WelcomeScreen />
 
@@ -188,6 +185,10 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
                 <FolderTree className="h-4 w-4" />
                 文件 (SFTP)
               </TabsTrigger>
+              <TabsTrigger value="docker">
+                <Container className="h-4 w-4" />
+                容器
+              </TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="terminal" keepMounted className="min-h-0 data-[hidden]:hidden">
@@ -202,6 +203,9 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
                 正在建立 SFTP 会话...
               </div>
             )}
+          </TabsContent>
+          <TabsContent value="docker" className="min-h-0">
+            {sshConfig && <DockerView sshConfig={sshConfig} />}
           </TabsContent>
         </Tabs>
       )}
