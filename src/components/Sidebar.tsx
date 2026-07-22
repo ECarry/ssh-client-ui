@@ -21,9 +21,11 @@ import {
 } from 'lucide-react'
 import type { Server, ServerGroup } from '@/types'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -65,6 +67,7 @@ export function Sidebar({
   onReorderServer,
   onDeleteServer,
 }: SidebarProps) {
+  const { language, setLanguage, t } = useI18n()
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -186,9 +189,18 @@ export function Sidebar({
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Terminal className="h-4 w-4 text-primary-foreground" />
         </div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold">Ferric</div>
-          <div className="text-xs text-muted-foreground">Rust · Tauri Client</div>
+        <div className="flex flex-1 items-center justify-between gap-2 leading-tight">
+          <div>
+            <div className="text-sm font-semibold">Ferric</div>
+            <div className="text-xs text-muted-foreground">Rust · Tauri Client</div>
+          </div>
+          <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'zh-CN')}>
+            <SelectTrigger size="sm" className="h-7 w-18 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en" className='text-xs'>EN</SelectItem>
+              <SelectItem value="zh-CN" className='text-xs'>中文</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -199,7 +211,7 @@ export function Sidebar({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索服务器..."
+            placeholder={t('searchServers')}
             className="pl-8"
           />
         </div>
@@ -208,12 +220,12 @@ export function Sidebar({
       {/* Groups header */}
       <div className="flex items-center justify-between px-4 pb-1">
         <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          分组
+          {t('groups')}
         </span>
         <Button
           variant="ghost"
           size="icon-xs"
-          title="新建分组"
+          title={t('newGroup')}
           onClick={() => setAdding(true)}
         >
           <FolderPlus className="h-3.5 w-3.5" />
@@ -233,13 +245,13 @@ export function Sidebar({
                 if (e.key === 'Enter') commitAdd()
                 if (e.key === 'Escape') cancelAdd()
               }}
-              placeholder="分组名称"
+              placeholder={t('groupName')}
               className="h-7 flex-1 text-sm"
             />
-            <Button variant="ghost" size="icon-xs" title="确认" onClick={commitAdd}>
+            <Button variant="ghost" size="icon-xs" title={t('confirm')} onClick={commitAdd}>
               <Check className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon-xs" title="取消" onClick={cancelAdd}>
+            <Button variant="ghost" size="icon-xs" title={t('cancel')} onClick={cancelAdd}>
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -324,7 +336,7 @@ export function Sidebar({
                     </button>
                     <div className="ml-auto flex items-center gap-0.5">
                       <button
-                        title="重命名"
+                        title={t('rename')}
                         onClick={() => startEdit(group)}
                         className="hidden rounded p-0.5 hover:text-foreground group-hover/header:block"
                       >
@@ -332,7 +344,7 @@ export function Sidebar({
                       </button>
                       {groups.length > 1 && (
                         <button
-                          title="删除分组"
+                          title={t('deleteGroup')}
                           onClick={() => onDeleteGroup(group.id)}
                           className="hidden rounded p-0.5 hover:text-destructive group-hover/header:block"
                         >
@@ -388,7 +400,7 @@ export function Sidebar({
                   })}
                   {groupServers.length === 0 && (
                     <div className="px-2 py-1.5 pl-7 text-xs text-muted-foreground/60">
-                      暂无服务器
+                      {t('noServers')}
                     </div>
                   )}
                 </div>
@@ -405,7 +417,7 @@ export function Sidebar({
       <div className="border-t border-sidebar-border p-3">
         <Button onClick={onAddServer} className="w-full">
           <Plus className="h-4 w-4" />
-          添加服务器
+          {t('addServer')}
         </Button>
       </div>
     </aside>
@@ -435,6 +447,7 @@ function ServerRow({
   onDragStart: () => void
   onDragEnd: () => void
 }) {
+  const { t } = useI18n()
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -449,7 +462,7 @@ function ServerRow({
             onDragEnd={onDragEnd}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
-            title="单击选择 · 双击编辑 · 拖拽移动分组 · 右键菜单"
+            title={t('serverHint')}
             className={cn(
               'group flex w-full items-center gap-2 rounded-md px-2 py-2 pl-7 text-left transition-colors',
               dragging && 'opacity-50',
@@ -477,12 +490,12 @@ function ServerRow({
       <ContextMenuContent>
         <ContextMenuItem onClick={onEdit}>
           <Pencil className="h-4 w-4" />
-          编辑
+          {t('edit')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Trash2 className="h-4 w-4" />
-          删除
+          {t('delete')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

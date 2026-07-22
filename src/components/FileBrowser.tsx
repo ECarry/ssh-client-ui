@@ -13,6 +13,7 @@ import {
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog'
 import type { RemoteFile } from '@/types'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import {
   onDownloadProgress,
@@ -48,6 +49,7 @@ function formatSize(bytes: number) {
 }
 
 export function FileBrowser({ sessionId }: FileBrowserProps) {
+  const { t } = useI18n()
   const [path, setPath] = useState('/')
   const [files, setFiles] = useState<RemoteFile[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -97,7 +99,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
   const onUpload = async () => {
     const picked = await openDialog({ multiple: false, directory: false })
     if (typeof picked !== 'string') return
-    setBusy('正在上传...')
+    setBusy(t('uploading'))
     setError(null)
     try {
       await sftpUpload(sessionId, picked, joinPath(path, baseName(picked)))
@@ -120,7 +122,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
       : await saveDialog({ defaultPath: selectedFile.name })
     if (typeof dest !== 'string') return
 
-    setBusy(isDir ? '正在下载文件夹...' : '正在下载...')
+    setBusy(isDir ? t('downloadingFolder') : t('downloading'))
     setError(null)
     setProgress({ transferred: 0, total: isDir ? 0 : selectedFile.size })
     const unlisten = await onDownloadProgress((p) => {
@@ -151,7 +153,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          title="上一级"
+          title={t('parentDirectory')}
           disabled={path === '/'}
           onClick={() => void loadDir(parentPath(path))}
         >
@@ -160,7 +162,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          title="主目录"
+          title={t('homeDirectory')}
           onClick={() => sftpHome(sessionId).then((h) => loadDir(h || '/'))}
         >
           <Home className="h-4 w-4" />
@@ -192,14 +194,14 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          title="刷新"
+          title={t('refresh')}
           onClick={() => void loadDir(path)}
         >
           <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
         </Button>
         <Button variant="outline" size="sm" disabled={!!busy} onClick={onUpload}>
           <Upload className="h-4 w-4" />
-          上传
+          {t('upload')}
         </Button>
         <Button
           variant="outline"
@@ -208,7 +210,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
           onClick={onDownload}
         >
           <Download className="h-4 w-4" />
-          下载
+          {t('download')}
         </Button>
       </div>
 
@@ -220,10 +222,10 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background text-xs text-muted-foreground">
             <tr className="border-b border-border">
-              <th className="px-4 py-2 text-left font-medium">名称</th>
-              <th className="px-4 py-2 text-right font-medium">大小</th>
-              <th className="px-4 py-2 text-left font-medium">修改时间</th>
-              <th className="px-4 py-2 text-left font-medium">权限</th>
+              <th className="px-4 py-2 text-left font-medium">{t('fileName')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('size')}</th>
+              <th className="px-4 py-2 text-left font-medium">{t('modified')}</th>
+              <th className="px-4 py-2 text-left font-medium">{t('permissions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -266,7 +268,7 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
                   colSpan={4}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
-                  空目录
+                  {t('emptyDirectory')}
                 </td>
               </tr>
             ) : null}
@@ -303,10 +305,10 @@ export function FileBrowser({ sessionId }: FileBrowserProps) {
           </div>
         ) : selected ? (
           <span>
-            已选择: <span className="text-foreground">{selected}</span>
+            {t('selected')} <span className="text-foreground">{selected}</span>
           </span>
         ) : (
-          <span>提示: 双击文件夹进入 · 单击选中文件或文件夹后可下载</span>
+          <span>{t('fileHint')}</span>
         )}
       </div>
     </div>

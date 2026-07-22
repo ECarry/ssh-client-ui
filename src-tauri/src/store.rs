@@ -49,15 +49,15 @@ impl Default for Config {
             groups: vec![
                 Group {
                     id: "g-prod".into(),
-                    name: "生产环境".into(),
+                    name: "Production".into(),
                 },
                 Group {
                     id: "g-staging".into(),
-                    name: "测试环境".into(),
+                    name: "Staging".into(),
                 },
                 Group {
                     id: "g-personal".into(),
-                    name: "个人服务器".into(),
+                    name: "Personal".into(),
                 },
             ],
         }

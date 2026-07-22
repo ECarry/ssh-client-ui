@@ -3,6 +3,7 @@ import { AlertCircle, Loader2, Pencil, Play, Plus, RefreshCw, RotateCcw, Square 
 import { Button } from '@/components/ui/button'
 import { ContainerFormModal } from '@/components/docker/ContainerFormModal'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import {
   controlRemoteContainer,
   createRemoteContainer,
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function DockerView({ sshConfig }: Props) {
+  const { t } = useI18n()
   const [info, setInfo] = useState<DockerInfo | null>(null)
   const [containers, setContainers] = useState<DockerContainer[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,7 +39,7 @@ export function DockerView({ sshConfig }: Props) {
       setInfo(verInfo)
       setContainers(containerList)
     } catch (err) {
-      setError(formatError(err))
+      setError(formatError(err, t('dockerUnavailable')))
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ export function DockerView({ sshConfig }: Props) {
       await controlRemoteContainer(sshConfig, id, action)
       await loadData()
     } catch (err) {
-      setError(formatError(err))
+      setError(formatError(err, t('dockerUnavailable')))
     } finally {
       setActingId(null)
     }
@@ -66,7 +68,7 @@ export function DockerView({ sshConfig }: Props) {
       }
       await loadData()
     } catch (err) {
-      const message = formatError(err)
+      const message = formatError(err, t('dockerUnavailable'))
       setError(message)
       throw new Error(message, { cause: err })
     }
@@ -89,12 +91,12 @@ export function DockerView({ sshConfig }: Props) {
             {info.os}/{info.arch}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground">远程 Docker 信息</div>
+          <div className="text-sm text-muted-foreground">{t('remoteDocker')}</div>
         )}
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setFormTarget(null)}>
             <Plus className="mr-1.5 h-4 w-4" />
-            创建容器
+            {t('createContainer')}
           </Button>
           <Button
             variant="outline"
@@ -107,7 +109,7 @@ export function DockerView({ sshConfig }: Props) {
             ) : (
               <RefreshCw className="mr-1.5 h-4 w-4" />
             )}
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -126,10 +128,10 @@ export function DockerView({ sshConfig }: Props) {
           <thead className="sticky top-0 bg-background text-xs text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-4 py-2 text-left font-medium">ID</th>
-              <th className="px-4 py-2 text-left font-medium">名称</th>
-              <th className="px-4 py-2 text-left font-medium">镜像</th>
-              <th className="px-4 py-2 text-left font-medium">状态</th>
-              <th className="px-4 py-2 text-right font-medium">操作</th>
+              <th className="px-4 py-2 text-left font-medium">{t('name')}</th>
+              <th className="px-4 py-2 text-left font-medium">{t('image')}</th>
+              <th className="px-4 py-2 text-left font-medium">{t('status')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +166,7 @@ export function DockerView({ sshConfig }: Props) {
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          title="停止"
+                          title={t('stop')}
                           disabled={busy}
                           onClick={() => void onControl(c.id, 'stop')}
                         >
@@ -174,7 +176,7 @@ export function DockerView({ sshConfig }: Props) {
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          title="启动"
+                          title={t('start')}
                           disabled={busy}
                           onClick={() => void onControl(c.id, 'start')}
                         >
@@ -184,7 +186,7 @@ export function DockerView({ sshConfig }: Props) {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        title="重启"
+                        title={t('restart')}
                         disabled={busy}
                         onClick={() => void onControl(c.id, 'restart')}
                       >
@@ -193,7 +195,7 @@ export function DockerView({ sshConfig }: Props) {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        title="编辑容器"
+                        title={t('editContainer')}
                         disabled={busy}
                         onClick={() => setFormTarget(c)}
                       >
@@ -208,7 +210,7 @@ export function DockerView({ sshConfig }: Props) {
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                  正在读取容器...
+                  {t('loadingContainers')}
                 </td>
               </tr>
             )}
@@ -218,7 +220,7 @@ export function DockerView({ sshConfig }: Props) {
                   colSpan={5}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
-                  暂无容器
+                  {t('noContainers')}
                 </td>
               </tr>
             )}
@@ -237,7 +239,7 @@ export function DockerView({ sshConfig }: Props) {
   )
 }
 
-function formatError(error: unknown) {
+function formatError(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message
-  return typeof error === 'string' ? error : '无法连接远程 Docker 服务'
+  return typeof error === 'string' ? error : fallback
 }

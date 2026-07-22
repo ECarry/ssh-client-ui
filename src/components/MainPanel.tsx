@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Container, FolderTree, Loader2, Pencil, Plug, Power, TerminalSquare } from 'lucide-react'
 import type { ConnectionStatus, Server } from '@/types'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -21,14 +22,12 @@ interface MainPanelProps {
   onStatusChange?: (id: string, status: ConnectionStatus) => void
 }
 
-const statusMeta: Record<ConnectionStatus, { label: string; color: string }> = {
-  disconnected: { label: '未连接', color: 'bg-muted-foreground' },
-  connecting: { label: '连接中...', color: 'bg-yellow-500' },
-  connected: { label: '已连接', color: 'bg-green-500' },
-  error: { label: '连接失败', color: 'bg-destructive' },
+const statusColor: Record<ConnectionStatus, string> = {
+  disconnected: 'bg-muted-foreground', connecting: 'bg-yellow-500', connected: 'bg-green-500', error: 'bg-destructive',
 }
 
 export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
+  const { t } = useI18n()
   const [tab, setTab] = useState('terminal')
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -124,7 +123,7 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
   if (!server) return <WelcomeScreen />
 
   const connected = status === 'connected' && sessionId
-  const meta = statusMeta[status]
+  const meta = { label: t(status === 'error' ? 'connectionFailed' : status), color: statusColor[status] }
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -151,7 +150,7 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
           {connected ? (
             <Button variant="outline" size="sm" onClick={reset}>
               <Power className="h-4 w-4" />
-              断开
+              {t('disconnect')}
             </Button>
           ) : (
             <Button
@@ -160,7 +159,7 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
               disabled={status === 'connecting'}
             >
               <Plug className="h-4 w-4" />
-              连接
+              {t('connect')}
             </Button>
           )}
         </div>
@@ -179,15 +178,15 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
             <TabsList variant="line">
               <TabsTrigger value="terminal">
                 <TerminalSquare className="h-4 w-4" />
-                终端
+                {t('terminal')}
               </TabsTrigger>
               <TabsTrigger value="sftp">
                 <FolderTree className="h-4 w-4" />
-                文件 (SFTP)
+                {t('files')}
               </TabsTrigger>
               <TabsTrigger value="docker">
                 <Container className="h-4 w-4" />
-                容器
+                {t('containers')}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -200,7 +199,7 @@ export function MainPanel({ server, onEdit, onStatusChange }: MainPanelProps) {
             ) : (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                正在建立 SFTP 会话...
+                {t('establishingSftp')}
               </div>
             )}
           </TabsContent>
@@ -222,6 +221,7 @@ function DisconnectedState({
   error: string | null
   onConnect: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
@@ -229,31 +229,32 @@ function DisconnectedState({
       </div>
       <div>
         <p className="text-sm text-muted-foreground">
-          {status === 'error' ? '连接失败' : '尚未建立连接'}
+          {status === 'error' ? t('connectionFailed') : t('notConnected')}
         </p>
         {error ? (
           <p className="mt-1 max-w-md font-mono text-xs text-destructive">{error}</p>
         ) : (
-          <p className="text-xs text-muted-foreground/70">点击下方按钮连接到服务器</p>
+          <p className="text-xs text-muted-foreground/70">{t('connectPrompt')}</p>
         )}
       </div>
       <Button onClick={onConnect} disabled={status === 'connecting'}>
-        {status === 'connecting' ? '连接中...' : '立即连接'}
+        {status === 'connecting' ? t('connecting') : t('connectNow')}
       </Button>
     </div>
   )
 }
 
 function WelcomeScreen() {
+  const { t } = useI18n()
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-background text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-muted">
         <TerminalSquare className="h-9 w-9 text-primary" />
       </div>
       <div>
-        <h2 className="text-lg font-semibold">欢迎使用 Ferric </h2>
+        <h2 className="text-lg font-semibold">{t('welcome')}</h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          从左侧选择一台服务器开始连接,或点击「添加服务器」创建新的连接配置。
+          {t('welcomeHint')}
         </p>
       </div>
     </div>

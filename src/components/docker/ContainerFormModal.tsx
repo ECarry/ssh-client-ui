@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import type { CreateDockerContainerInput, DockerContainer } from '@/lib/docker'
+import { useI18n } from '@/i18n'
 
 interface ContainerFormModalProps {
   initial?: DockerContainer | null
@@ -23,6 +24,7 @@ export function ContainerFormModal({
   onClose,
   onSave,
 }: ContainerFormModalProps) {
+  const { t } = useI18n()
   const editing = Boolean(initial)
   const [form, setForm] = useState<CreateDockerContainerInput>(() => ({
     name: initial?.names ?? '',
@@ -46,16 +48,16 @@ export function ContainerFormModal({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? '编辑容器' : '创建容器'}</DialogTitle>
+          <DialogTitle>{editing ? t('editContainerTitle') : t('createContainerTitle')}</DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Docker 不能原地修改镜像或启动命令；此处可安全地重命名容器。'
-              : '创建后将以后台模式启动容器。'}
+              ? t('editContainerHint')
+              : t('createContainerHint')}
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={(event) => void submit(event)}>
-          <Field label="容器名称" hint={editing ? undefined : '可选'}>
+          <Field label={t('containerName')} hint={editing ? undefined : t('optional')}>
             <Input
               required={editing}
               value={form.name ?? ''}
@@ -65,7 +67,7 @@ export function ContainerFormModal({
             />
           </Field>
 
-          <Field label="镜像">
+          <Field label={t('image')}>
             <Input
               required
               disabled={editing}
@@ -75,7 +77,7 @@ export function ContainerFormModal({
             />
           </Field>
 
-          <Field label="启动命令" hint={editing ? undefined : '可选，使用 sh -c 执行'}>
+          <Field label={t('startupCommand')} hint={editing ? undefined : t('shellCommandHint')}>
             <Input
               disabled={editing}
               value={form.command ?? ''}
@@ -86,11 +88,11 @@ export function ContainerFormModal({
 
           <DialogFooter>
             <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
-              取消
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editing ? '保存更改' : '创建容器'}
+              {editing ? t('saveChanges') : t('createContainer')}
             </Button>
           </DialogFooter>
         </form>
