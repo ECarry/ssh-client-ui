@@ -72,7 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
-          releaseName: 'Ferric SSH v__VERSION__'
+          releaseName: 'Ferric ${{ github.ref_name }}'
           releaseBody: 'See the assets below to download.'
           releaseDraft: true
           prerelease: false
