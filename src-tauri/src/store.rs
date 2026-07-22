@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 /// Keychain service under which per-server passwords are stored.
-const KEYCHAIN_SERVICE: &str = "com.ferric.ssh";
+const KEYCHAIN_SERVICE: &str = "com.ferric.app";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

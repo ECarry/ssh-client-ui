@@ -247,7 +247,7 @@ function WelcomeScreen() {
         <TerminalSquare className="h-9 w-9 text-primary" />
       </div>
       <div>
-        <h2 className="text-lg font-semibold">欢迎使用 Ferric SSH</h2>
+        <h2 className="text-lg font-semibold">欢迎使用 Ferric </h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           从左侧选择一台服务器开始连接,或点击「添加服务器」创建新的连接配置。
         </p>

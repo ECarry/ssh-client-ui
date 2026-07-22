@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ferric SSH
+# Ferric
 
 **A modern, cross-platform SSH / SFTP client built with Rust + Tauri**
 
@@ -12,7 +12,7 @@ English · [简体中文](./README.zh-CN.md)
 
 ---
 
-Ferric SSH is a lightweight, fast, and modern desktop SSH client. The backend is
+Ferric is a lightweight, fast, and modern desktop SSH client. The backend is
 powered by a pure-Rust protocol stack —
 [`russh`](https://github.com/Eugeny/russh) /
 [`russh-sftp`](https://github.com/AspectUnk/russh-sftp) — so it does **not** shell
@@ -45,7 +45,7 @@ and packaged as a native desktop app via Tauri.
 ## 📂 Project Structure
 
 ```
-ssh-client-ui/
+Ferric/
 ├── src/                      # Frontend (React + TypeScript)
 │   ├── App.tsx               # Top-level state: servers / groups / tabs / connection status
 │   ├── types.ts              # Shared types (Server / ServerGroup / RemoteFile ...)
